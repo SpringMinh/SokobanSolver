@@ -1,6 +1,9 @@
-ASTAR
-Steps: 142, Weight: 121, Node: 1697152, Time (ms): 400272, Memory (MB): 38.88
-LLUUddrruLdlUrUULLuuurrdDDllLullddrUluRRdrrrDDlUruLLLullddrdrdRdrUUUrdrdLuuuLLUlllddrUddrdrdrUUruullLrrrddldllululuuRDrruLdrrrddlUruLLrruuullD
 UCS
-Steps: 168, Weight: 103, Node: 2022088, Time (ms): 322672, Memory (MB): 37.28
-LLUUddrruLUULLLrrrdddlUUruLLuuurrdDDDlddrruLdlUUruuuullddlllddrUddrdRdrUUruuuuulldddLuruurrdddddldllululuuRRllddrUddrdrruruuLLLrrrdddlllululuuRDrrrrddlUruLLULrdrruuullD
+Steps: 168, Weight: 271, Node: 159203, Time (ms): 19993, Memory (MB): 11.59
+LLUUddrruLUULLLrrdrddlUUruLLuuurrdDDDlddrruLdlUUruuuullddlllddrUddrdRdrUruuuuuulldddLuruurrddddddlllululuuRRllddrUddrdrrUruuLLLrrrddldllululuuRDrrrrddlUruLLULrdrruuullD
+UCS
+Steps: 142, Weight: 263, Node: 7499042, Time (ms): 308898.55, Memory (MB): 1560.86
+LLUUddrruLdlUrUULLuuurrdDDllLullddrUluRRdrrrDDlUruLLLullddrdrdRdrUUrrdLulUruLLUlllddrUddrdrdrUUruullLrrrddldllululuuRDrruLrdrrddlUruLLrruuullD
+UCS
+Steps: 142, Weight: 263, Node: 2120455, Time (ms): 99305.66, Memory (MB): 1101.14
+LLUUddrruLdlUrUULLuuurrdDDllLullddrUluRRdrrrDDlUruLLLullddrdrdRdrUUrrdLulUruLLUlllddrUddrdrdrUUruullLrrrddldllululuuRDrruLdrrrddlUruLLrruuullD

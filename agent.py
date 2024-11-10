@@ -165,11 +165,11 @@ class Agent:
             f"{directions}\n"
         )
 
-        if os.path.exists(outputfile):
+        """if os.path.exists(outputfile):
             with open(outputfile, 'r') as file:
                 if action in file.read():
                     print(f"{action} already exists in {outputfile}, skipping append.")
-                    return
+                    return"""
         with open(outputfile, 'a') as file:
             file.write(output)
 
@@ -357,69 +357,80 @@ class Agent:
 
         while not frontier.empty():
 
-                _, node, path_weight, directions = frontier.get()
-                # node.Print(self.sokoban)
-                if counter % 10000 == 0:
-                    print(counter)
+            _, node, path_weight, directions = frontier.get()
 
-                counter += 1
+            if counter % 10000 == 0:
+                print(counter)
 
-                # Add current node to explored
-                explored[self.conf2str(node)] = None
+            counter += 1
 
-                # Check if current node is goal node
-                if self.isGoal(node):
-                    end_time = time.time()
-                    _, peak_memory = tracemalloc.get_traced_memory()
-                    tracemalloc.stop()
-                    time_taken = end_time - start_time
-                    return node, counter, path_weight, directions, time_taken, peak_memory
+            # Calculate the unique configuration string for the current node
+            configurationStr = self.conf2str(node)
+            
+            # If this configuration has been explored with a lower cost, skip this path
+            if configurationStr in explored and explored[configurationStr] <= path_weight:
+                print("already a better path!")
+                continue
+
+            # Add current node's configuration to explored with the minimum cost
+            explored[configurationStr] = path_weight
+
+            # Check if the current node is the goal node
+            if self.isGoal(node):
+                end_time = time.time()
+                _, peak_memory = tracemalloc.get_traced_memory()
+                tracemalloc.stop()
+                time_taken = end_time - start_time
+                return node, counter, path_weight, directions, time_taken, peak_memory
+
+            # Find children of the current node
+            children = self.sokoban.moves(node)
+
+            for child, boxIdx, move in children:
+                child_configurationStr = self.conf2str(child)
                 
-                # Find children of current node
-                children = self.sokoban.moves(node)
+                # Check for deadlock in the child's configuration
+                is_deadlock = False
+                for (boxR, boxC) in child.boxPos:
+                    if (boxR, boxC) not in goal:
+                        if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
+                            is_deadlock = True
+                            break
+                
+                # If a deadlock is detected, skip this child
+                if is_deadlock:
+                    continue
 
-                # Check for deadlock in all children's configuration which are not on goal pos
-                # Calculate heuristic value for all valid child
+                # Determine the direction and cost for this child
+                direction = direction_map[move]
+                if boxIdx == -1:
+                    child_weight = 0
+                    direction = direction.lower()
+                else:
+                    child_weight = weights[boxIdx]
+                    direction = direction.upper()
 
-                for child, boxIdx, move in children:
+                # Calculate total cost (path weight + step cost)
+                total_path_weight = path_weight + child_weight + 1  # Add step cost of 1 for each move
 
-                    configurationStr = self.conf2str(child)
-                    if configurationStr not in explored:
+                # Only add child if it has not been explored with a lower cost
+                print("Direction: ", directions + direction, "Total: ", total_path_weight, " path: ", path_weight, " child: ", child_weight, "\n")
+                time.sleep(0.2)
 
-                        # flag-> false means current configuration has no deadlock and is default behaviour    
-                        # If any box which is not on goal position and is permanently blocked, there is a deadlock
-                        flag = False
-                        for (boxR, boxC) in child.boxPos:
-                            if (boxR, boxC) not in goal:
-                                if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
-                                    flag = True
-                                    break
-                        # deadlock -> prune the branch
-                        if flag:
-                            del(child)
-                            continue
-                        direction = direction_map[move]
-                        if boxIdx == -1:
-                            child_weight = 0
-                            direction = direction.lower()
-                        else:
-                            child_weight = weights[boxIdx]
-                            direction = direction.upper()
-                        total_path_weight = path_weight + child_weight
-                        # print(total_path_weight, " ", path_weight, " ", child_weight, "\n")
-                        # print(child.boxPos)
-                        frontier.put((total_path_weight + node.level, child, total_path_weight, directions + direction))
+                if child_configurationStr not in explored: #or explored[child_configurationStr] > total_path_weight:
+                    frontier.put((total_path_weight, child, total_path_weight, directions + direction))
 
-                    # already visited (infinite loop)
-                    else:
-                        del(child)
+        
+            print("Frontier: ", frontier.queue, "\n")
 
+        # If no solution is found, return the search metrics
         end_time = time.time()
         _, peak_memory = tracemalloc.get_traced_memory()
         tracemalloc.stop()
         time_taken = end_time - start_time
 
         return None, counter, None, "", time_taken, peak_memory
+
     
     def Astar(self):
 
