@@ -10,3 +10,6 @@ RurrdLLLrurdrdddlDLdllUdrruurdRlldlluUddrruurdruuuulldRDrddlldlluR
 BFS
 Steps: 34, Weight: 40, Node: 65452, Time (ms): 26240, Memory (MB): 12.85
 RurrddddlDRuuuuLLLrdRDrddlLdllURlU
+A*
+Steps: 34, Weight: 40, Node: 7848, Time (ms): 8215, Memory (MB): 1.87
+RurrddddlDRuuuuLLLrdRDrddlLdllUUdR

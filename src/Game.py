@@ -334,7 +334,7 @@ class Game(GameInterface):
         elif (Algo == 'UCS'):
             self.pathUCS, self.statUCS = self.Sokoban.UCS()
             self.UCS = True
-        elif (Algo == 'Astar'):
+        elif (Algo == 'ASTAR'):
             self.pathAstar, self.statAstar = self.Sokoban.Astar()
             self.Astar = True
     
