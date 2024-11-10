@@ -14,6 +14,7 @@ class Button(ButtonInterface):
         self.id = id
         self.fontsize = fontsize
         self.text_color = text_color
+        self.font = pygame.font.SysFont('comicsans', self.fontsize)
 
     def draw(self, canvas):
         if self.outline_color:
@@ -23,8 +24,7 @@ class Button(ButtonInterface):
             pygame.draw.rect(canvas, self.color, (self.x, self.y, self.width, self.height))
         
         if (self.text != ''):
-            font = pygame.font.SysFont('comicsans', self.fontsize)
-            text = font.render(self.text, 1, self.text_color)
+            text = self.font.render(self.text, 1, self.text_color)
             canvas.blit(text, (self.x + (self.width/2 - text.get_width()/2), self.y + (self.height/2 - text.get_height()/2)))
     
     def isMouseOver(self, mousePos):

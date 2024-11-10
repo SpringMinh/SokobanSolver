@@ -33,7 +33,7 @@ class Map(MapInterface):
                         self.goalPos.append((x,y))
                         self.board[x][y]=' '
 
-    def get_level(level):
+    def get_level(self, level):
         """ Get level from file """
         filepath = "levels/"
         if level < 10:

@@ -1,5 +1,5 @@
 class EventManagerInterface:
-    def pollEvent():
+    def pollEvent(self, buttons):
         """Function to detect mouse and keyboard event"""
         pass
     # def processEvent():

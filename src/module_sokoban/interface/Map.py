@@ -3,6 +3,6 @@ class MapInterface:
         """Initialize map"""
         pass
 
-    def get_level(level):
+    def get_level(self, level):
         """Load level into Sokoban"""
         pass

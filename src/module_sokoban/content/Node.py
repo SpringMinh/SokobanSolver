@@ -10,3 +10,7 @@ class Node(NodeInterface):
             self.depth = parent.depth + 1
         except:
             self.depth = 0
+        self.cost = 0
+
+    def __lt__(self,other):
+        return self.cost<other.cost
