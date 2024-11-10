@@ -372,7 +372,6 @@ class SearchAlgorithm:
             configurationStr = self.conf2str(node)
             
             if explored[configurationStr] < path_cost:
-                # print("already a better path!")
                 continue
             
             # Check if current node is goal node

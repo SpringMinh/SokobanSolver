@@ -59,30 +59,46 @@ class Agent:
         board=self.sokoban.board
 
         BLACK = (0, 0, 0)
-        WINDOW_HEIGHT = len(board)*36
-        WINDOW_WIDTH = len(board[0])*36
+        # Window size based on board size, but with additional width for buttons on the right
+        
+        BUTTON_WIDTH = 40  # Width of each button
+        BUTTON_HEIGHT = 40 # Height of each button
+        BUTTON_MARGIN = 20  # Space between buttons
+        BUTTON_AREA_WIDTH = (BUTTON_WIDTH + BUTTON_MARGIN) * 5 + BUTTON_MARGIN  # Width for 5 buttons in a row
+
+        WINDOW_HEIGHT = max(len(board) * 36, (BUTTON_HEIGHT + BUTTON_MARGIN) * 5 + BUTTON_MARGIN)
+        WINDOW_WIDTH = BUTTON_AREA_WIDTH + (len(board[0]) * 36)
 
         pygame.display.set_caption('Sokoban')
         print("[+] Initializing game...")
 
         pygame.init()
-        SCREEN = pygame.display.set_mode((max(WINDOW_WIDTH,52), WINDOW_HEIGHT+50))
-        # display_surface = pygame.display.set_mode((max(WINDOW_WIDTH,52), WINDOW_HEIGHT+50))
+        SCREEN = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         CLOCK = pygame.time.Clock()
         SCREEN.fill(BLACK)
 
-        margin = (max(WINDOW_WIDTH, 52) - (36 * 4)) / 5
-        Buttons = [
-            Button('black', margin, WINDOW_HEIGHT + 4, 36, 36, 'Prev', id='navLeft'),
-            Button('black', 2 * margin + 36, WINDOW_HEIGHT + 4, 36, 36, 'Next', id='navRight'),
-            Button('black', 3 * margin + 2 * 36, WINDOW_HEIGHT + 4, 36, 36, 'Auto', id='navAuto'),
-            Button('red', 4 * margin + 3 * 36, WINDOW_HEIGHT + 4, 36, 36, 'Reset', id='navReset'),
+        # Calculate button grid positions
+        total_buttons = 10
+        rows = 5
+        buttons_per_row = 2
+        start_y = BUTTON_MARGIN
+        start_x = BUTTON_MARGIN
 
-            Button('black', margin, WINDOW_HEIGHT + 50, 36, 36, 'DFS', id='navDFS'),
-            Button('black', 2 * margin + 36, WINDOW_HEIGHT + 50, 36, 36, 'BFS', id='navBFS'),
-            Button('black', 3 * margin + 2 * 36, WINDOW_HEIGHT + 50, 36, 36, 'UCS', id='navUCS'),
-            Button('black', 4 * margin + 3 * 36, WINDOW_HEIGHT + 50, 36, 36, 'A*', id='navAstar')
+        Buttons = []
+        button_labels = [
+            ('Prev', 'navLeft'), ('Next', 'navRight'), ('Auto', 'navAuto'), ('Reset', 'navReset'), ('DFS', 'navDFS'),
+            ('BFS', 'navBFS'), ('UCS', 'navUCS'), ('A*', 'navAstar'), ('PMap', 'navPrev'), ('NMap', 'navNext')
         ]
+
+        # Create two rows of buttons
+        for i in range(total_buttons):
+            row = i // buttons_per_row
+            col = i % buttons_per_row
+            x = start_x + col * (BUTTON_WIDTH + BUTTON_MARGIN)
+            y = start_y + row * (BUTTON_HEIGHT + BUTTON_MARGIN)
+            label, button_id = button_labels[i]
+            Buttons.append(Button('black', x, y, BUTTON_WIDTH, BUTTON_HEIGHT, label, id=button_id))
+
 
         current_node = self.sokoban.root
         path = []
@@ -99,7 +115,7 @@ class Agent:
                 current_node = path[current_index]
             else:
                 current_node = self.sokoban.root
-            self.drawGrid(current_node, Buttons)
+            self.drawGrid(current_node, Buttons, BUTTON_AREA_WIDTH)
 
             if autoplay:
                 if path:
@@ -110,6 +126,12 @@ class Agent:
             if action != 'NOTCLICKEDWHILEAUTO':  # Only process if valid action is returned
                 path, current_index, autoplay = self.process_action(action, path, current_index, Buttons, autoplay, level)
             
+             # Handle level change requests directly without quitting
+            if action == 'NEXT_LEVEL':
+                return 'NEXT_LEVEL'
+            elif action == 'PREV_LEVEL':
+                return 'PREV_LEVEL'
+
             if autoplay and path and (current_time - last_auto_update > autodelay):
                 if current_index < len(path) - 1:
                     current_index += 1
@@ -166,6 +188,14 @@ class Agent:
 
     # Helper function to handle actions
     def process_action(self, action, path, current_index, Buttons, autoplay, level):
+        if action == 'NEXT_LEVEL':
+            print("Moving to the next level.")
+            return path, current_index, autoplay
+
+        elif action == 'PREV_LEVEL':
+            print("Moving to the previous level.")
+            return path, current_index, autoplay
+        
         if action == 'DFS':
             print("DFS selected")
             result, counter, weight, directions, time_taken, peak_memory = self.search.DFS()
@@ -212,16 +242,18 @@ class Agent:
 
         return path, current_index, autoplay  # Return updated path and index
 
-    def drawGrid(self,node,Buttons):
+    def drawGrid(self,node,Buttons, BUTTON_AREA_WIDTH):
         if not hasattr(self, 'lastnode') or self.lastnode != node:
             self.lastnode = node
             board=self.sokoban.board
 
-            if not hasattr(self, 'display_surface'):
-                WINDOW_HEIGHT = len(board)*36
-                WINDOW_WIDTH = len(board[0])*36
+            # Define larger fixed window size
+            FIXED_WINDOW_WIDTH = 800   # Larger width
+            FIXED_WINDOW_HEIGHT = 600  # Larger height
 
-                display_surface = pygame.display.set_mode((max(WINDOW_WIDTH,52), WINDOW_HEIGHT+100))
+            if not hasattr(self, 'display_surface'):
+                # Keep the window size fixed instead of dynamically resizing based on the board size
+                display_surface = pygame.display.set_mode((FIXED_WINDOW_WIDTH, FIXED_WINDOW_HEIGHT))
 
             # Load level images
             wall = pygame.image.load('images\\wall.png').convert()
@@ -232,44 +264,43 @@ class Agent:
             target = pygame.image.load('images\\target.png').convert()
             player = pygame.image.load('images\\player.png').convert()
 
-            margin=(max(WINDOW_WIDTH,52)-(36*4))/5
+            board_start_x = BUTTON_AREA_WIDTH / 2
         
             font = pygame.font.SysFont(None, 24)
 
             blockSize = 36  # Set the size of the grid block
 
-            for x in range(0, WINDOW_HEIGHT, blockSize):
-                for y in range(0, WINDOW_WIDTH, blockSize):
+            for x in range(0, len(board) * blockSize, blockSize):
+                for y in range(0, len(board[0]) * blockSize, blockSize):
+                    # Adjust the x-coordinate by adding board_start_x
+                    screen_x = y + board_start_x
+                    screen_y = x
 
-                    # print(f"({x//blockSize},{y//blockSize})    ====>    {mat[x//blockSize][y//blockSize]}")
                     if board[x//blockSize][y//blockSize] == "#":
-                        display_surface.blit(wall, (y, x))
-
+                        display_surface.blit(wall, (screen_x, screen_y))
                     elif board[x//blockSize][y//blockSize] == " ":
-                        display_surface.blit(space, (y, x))
+                        display_surface.blit(space, (screen_x, screen_y))
                     
                     if (x//blockSize,y//blockSize) in self.sokoban.goal:
-                        display_surface.blit(target, (y, x))
+                        display_surface.blit(target, (screen_x, screen_y))
 
                     box_index = None
-                    if (x//blockSize,y//blockSize) in node.boxPos :
-                        # Find the box index
+                    if (x//blockSize,y//blockSize) in node.boxPos:
                         box_index = node.boxPos.index((x // blockSize, y // blockSize))
-
-                        if (x // blockSize, y // blockSize) in self.sokoban.goal:
-                            display_surface.blit(box_on_target, (y, x))  # Use target image
+                        
+                        if (x//blockSize,y//blockSize) in self.sokoban.goal:
+                            display_surface.blit(box_on_target, (screen_x, screen_y))
                         else:
-                            display_surface.blit(box, (y, x))  # Use regular box image
-                        # Draw the box weight on top of the box
-                        # White color for text and adjust position for visibility  
+                            display_surface.blit(box, (screen_x, screen_y))
+                        
                         weight_text = font.render(str(self.sokoban.boxWeights[box_index]), True, (255, 255, 255))
-                        text_rect = weight_text.get_rect(center=(y + blockSize // 2, x + blockSize // 2))  # Center in the box
-                        display_surface.blit(weight_text, text_rect)  # Draw the centered text
+                        text_rect = weight_text.get_rect(center=(screen_x + blockSize // 2, screen_y + blockSize // 2))
+                        display_surface.blit(weight_text, text_rect)
 
                     if (x//blockSize,y//blockSize) == (node.workerPosX,node.workerPosY):
-                        display_surface.blit(player, (y, x))
+                        display_surface.blit(player, (screen_x, screen_y))
                         if (x//blockSize,y//blockSize) in self.sokoban.goal:
-                            display_surface.blit(player_on_target, (y, x))
+                            display_surface.blit(player_on_target, (screen_x, screen_y))
 
             for Button in Buttons:
                 Button.draw(display_surface, outline='white')
@@ -307,6 +338,12 @@ class Agent:
                                 elif btn.id == 'navAstar':
                                     print("A* algorithm chosen")
                                     return 'ASTAR'
+                                elif btn.id == 'navNext':
+                                    print("Next Level Button clicked")
+                                    return 'NEXT_LEVEL'
+                                elif btn.id == 'navPrev':
+                                    print("Previous Level Button clicked")
+                                    return 'PREV_LEVEL'
 
                     if event.type == pygame.QUIT:
                         print("[+] Quitting...")
@@ -336,9 +373,13 @@ class Agent:
                     sys.exit()
             # In auto-play, return 0 to keep progressing unless a Button event occurs
             return 'NOTCLICKEDWHILEAUTO'
+        
 class Button:
     def __init__(self, color, x,y,width,height, text='',id=None):
-        self.color = color
+        self.default_color = color
+        self.hover_color = (255, 0, 0)  # Red color for hover
+        self.pressed_opacity = 150  # Set opacity for pressed state
+        self.color = self.default_color
         self.x = x
         self.y = y
         self.width = width
@@ -346,6 +387,7 @@ class Button:
         self.text = text
         self.id = id
         self.font = pygame.font.SysFont('comicsans', 12)
+        self.pressed = False  # Track if the button is pressed
 
     def draw(self,win,outline=None):
         #Call this method to draw the Button on the screen
