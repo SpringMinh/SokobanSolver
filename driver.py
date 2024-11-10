@@ -1,6 +1,7 @@
 import os
 from agent import Agent
 from env import Sokoban
+from algorithm import SearchAlgorithm
 
 def get_level(level):
     filename = f"levels/input-{str(level).zfill(2)}.txt"
@@ -48,6 +49,6 @@ if __name__ == "__main__":
     if board:
         worker_pos, box_pos, goal_pos = parse_board(board)
         sokoban_obj = Sokoban(board, box_pos, goal_pos, worker_pos, box_weights)
-        agent = Agent(sokoban_obj)
+        search = SearchAlgorithm(sokoban_obj)
+        agent = Agent(sokoban_obj, search)
         agent.Interactive(level)
-        #
