@@ -14,19 +14,31 @@ class Sokoban(SokobanInterface):
         self.statBusy = False
 
     def setCurrentMap(self, id):
-        self.currentMap = (id - 1) % 10 + 1
+        self.currentMap = id
         if (self.Map[self.currentMap].exist):
             self.root = Node(None, self.Map[self.currentMap].boxPos, self.Map[self.currentMap].workerPosX, self.Map[self.currentMap].workerPosY)
 
     def DFS(self):
         goalNode, states, weights, directions, time_taken, peak_memory = self.Algorithm.DFS(self.root, self.Map[self.currentMap])
-        self.printOutput('DFS', states, goalNode.depth, weights, directions, time_taken, peak_memory)
+        if weights != -1:
+            self.printOutput('DFS', states, goalNode.depth, weights, directions, time_taken, peak_memory)
+        else:
+            self.printOutput('DFS', states, None, weights, directions, time_taken, peak_memory)
+            return [], []
+        while (self.statBusy):
+            continue
+        self.statBusy = True
         self.statistics_init(directions)
+        self.statBusy = False
         return self.generatePath(goalNode), self.statistics
 
     def BFS(self):
         goalNode, states, weights, directions, time_taken, peak_memory =  self.Algorithm.BFS(self.root, self.Map[self.currentMap])
-        self.printOutput('BFS', states, goalNode.depth, weights, directions, time_taken, peak_memory)
+        if weights != -1:
+            self.printOutput('BFS', states, goalNode.depth, weights, directions, time_taken, peak_memory)
+        else:
+            self.printOutput('BFS', states, None, weights, directions, time_taken, peak_memory)
+            return [], []
         while (self.statBusy):
             continue
         self.statBusy = True
@@ -36,7 +48,11 @@ class Sokoban(SokobanInterface):
     
     def UCS(self):
         goalNode, states, weights, directions, time_taken, peak_memory =  self.Algorithm.UCS(self.root, self.Map[self.currentMap])
-        self.printOutput('UCS', states, goalNode.depth, weights, directions, time_taken, peak_memory)
+        if weights != -1:
+            self.printOutput('UCS', states, goalNode.depth, weights, directions, time_taken, peak_memory)
+        else:
+            self.printOutput('UCS', states, None, weights, directions, time_taken, peak_memory)
+            return [], []
         while (self.statBusy):
             continue
         self.statBusy = True
@@ -46,7 +62,11 @@ class Sokoban(SokobanInterface):
 
     def Astar(self):
         goalNode, states, weights, directions, time_taken, peak_memory =  self.Algorithm.Astar(self.root, self.Map[self.currentMap])
-        self.printOutput('A*', states, goalNode.depth, weights, directions, time_taken, peak_memory)
+        if weights != -1:
+            self.printOutput('A*', states, goalNode.depth, weights, directions, time_taken, peak_memory)
+        else:
+            self.printOutput('A*', states, None, weights, directions, time_taken, peak_memory)
+            return [], []
         while (self.statBusy):
             continue
         self.statBusy = True
@@ -61,12 +81,16 @@ class Sokoban(SokobanInterface):
         time_ms = int(time_taken * 1000)  # Convert seconds to milliseconds
         memory_mb = peak_memory / (1024 * 1024)  # Convert bytes to MB
 
-        output = (
-            f"{Algo}\n"
-            f"Steps: {steps}, Weight: {weights}, Node: {states}, "
-            f"Time (ms): {time_ms}, Memory (MB): {memory_mb:.2f}\n"
-            f"{directions}\n"
-        )
+        if weights == -1:
+            output = (
+                    f"{Algo}: Unsolvable\n Node: {states}, "
+                    f"Time (ms): {time_ms}, Memory (MB): {memory_mb:.2f}\n"
+            )
+        else:
+            output = (
+                f"{Algo}\nSteps: {steps}, Weight: {weights}, Node: {states}, "
+                f"Time (ms): {time_ms}, Memory (MB): {memory_mb:.2f}\n{directions}\n"
+            )
 
         if os.path.exists(outputfile):
             with open(outputfile, 'r') as file:

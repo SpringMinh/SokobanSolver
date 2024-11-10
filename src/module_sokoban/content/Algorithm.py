@@ -226,7 +226,7 @@ class Algorithm(AlgorithmInterface):
         tracemalloc.stop()
         time_taken = end_time - start_time
 
-        return None, counter, None, "", time_taken, peak_memory
+        return None, counter, -1, "", time_taken, peak_memory
     
     def BFS(self, root, map):
         if not map.exist:
@@ -306,7 +306,7 @@ class Algorithm(AlgorithmInterface):
         tracemalloc.stop()
         time_taken = end_time - start_time   
 
-        return None, counter, None, "", time_taken, peak_memory
+        return None, counter, -1, "", time_taken, peak_memory
     
     def UCS(self, root, map):
         if not map.exist:
@@ -401,7 +401,7 @@ class Algorithm(AlgorithmInterface):
         tracemalloc.stop()
         time_taken = end_time - start_time
 
-        return None, counter, None, "", time_taken, peak_memory
+        return None, counter, -1, "", time_taken, peak_memory
     
     def heuristic(self, node, map):
         boxPos = copy.deepcopy(node.boxPos)
@@ -502,4 +502,4 @@ class Algorithm(AlgorithmInterface):
         tracemalloc.stop()
         time_taken = end_time - start_time
 
-        return None, counter, None, "", time_taken, peak_memory
+        return None, counter, -1, "", time_taken, peak_memory

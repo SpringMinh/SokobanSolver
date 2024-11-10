@@ -249,6 +249,8 @@ class Game(GameInterface):
             self.statBFS = []
             self.statUCS = []
             self.statAstar = []
+            self.curPath = []
+            self.curStat = []
             self.current_index = 0
             self.current_Algo = ''
             self.stepText = self.font.render('Steps: ', 1, 'white')
@@ -273,6 +275,8 @@ class Game(GameInterface):
             self.statBFS = []
             self.statUCS = []
             self.statAstar = []
+            self.curPath = []
+            self.curStat = []
             self.current_index = 0
             self.current_Algo = ''
             self.stepText = self.font.render('Steps: ', 1, 'white')
@@ -296,6 +300,8 @@ class Game(GameInterface):
                     self.doneText = self.font.render('Waiting for processing ...', 1, 'white')
                 else:
                     self.doneText = self.font.render('', 1, 'white')
+                if (self.current_Algo == 'DFS' and self.DFS) or (self.current_Algo == 'BFS' and self.BFS) or (self.current_Algo == 'UCS' and self.UCS) or (self.current_Algo == 'ASTAR' and self.Astar):
+                    self.doneText = self.font.render('Unsolvable!', 1, 'red')
 
             if (self.curPath):
                 self.doneText = self.font.render('Done!', 1, 'green')
@@ -343,6 +349,10 @@ class Game(GameInterface):
         self.currentNode = self.Sokoban.root
         self.currentMapId = id
         self.currentMap = self.Map[id]
+        # print(id)
+        # print(self.Sokoban.currentMap)
+        # print(self.Sokoban.root.boxPos, self.Sokoban.root.workerPosX, self.Sokoban.root.workerPosY)
+        # print(self.currentNode.boxPos, self.currentNode.workerPosX, self.currentNode.workerPosY)
 
     def Draw(self):
         self.display_surface.fill(self.BLACK)

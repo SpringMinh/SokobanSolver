@@ -1,0 +1,5 @@
+A*
+Steps: None, Weight: -1, Node: 22, Time (ms): 5, Memory (MB): 0.01
+
+DFS: Unsolvable
+ Node: 31, Time (ms): 4, Memory (MB): 0.01

@@ -1,0 +1,6 @@
+DFS
+Steps: 55, Weight: 18, Node: 285, Time (ms): 49, Memory (MB): 0.06
+lddddruuurDllddruRlldrrrUllldrrrruuLLdlldrrruuullDDldRR
+UCS
+Steps: 7, Weight: 6, Node: 249, Time (ms): 57, Memory (MB): 0.07
+ddRurDD
