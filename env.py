@@ -114,31 +114,3 @@ class Node:
         fp.write(table)
         fp.write("\n")
         fp.close()
-  
-
-if __name__=="__main__":
-
-    board=[
-	['#','#','#','#',' ',' ',' '],           
-    ['#',' ',' ','#','#','#',' '],  
-    ['#',' ',' ',' ',' ','#',' '],    
-    ['#',' ',' ',' ',' ','#',' '],  
-    ['#','#','#',' ','#','#','#'],  
-    ['#',' ',' ',' ',' ',' ','#'],  
-    ['#',' ',' ',' ',' ',' ','#'],  
-    ['#',' ',' ',' ',' ',' ','#'],  
-    ['#','#','#',' ',' ','#','#'],  
-    [' ',' ','#','#','#','#',' ']]
-
-
-    boxPos=[(3,2) , (5,2) , (5,4) , (7,3),(8,3)]  # write box position here
-    goalPos=[(6,1) , (6,2) , (6,4) , (6,5)]  # write goal position here
-    
-    workerPos=(6,3)
-
-    SBobj=Sokoban(board,boxPos,goalPos,workerPos)        
-    
-    children=SBobj.moves(SBobj.root)
-
-    for c in children:
-        c.Print(SBobj)

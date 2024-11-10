@@ -43,12 +43,31 @@ def parse_board(board):
     return worker_pos, box_pos, goal_pos
 
 if __name__ == "__main__":
-    level = 3
-    board, box_weights = get_level(level)
+    level = 1
+    running = True
 
-    if board:
+    while running:
+        board, box_weights = get_level(level)
+        if not board:
+            print(f"Level {level} could not be loaded.")
+            break
+
         worker_pos, box_pos, goal_pos = parse_board(board)
         sokoban_obj = Sokoban(board, box_pos, goal_pos, worker_pos, box_weights)
         search = SearchAlgorithm(sokoban_obj)
         agent = Agent(sokoban_obj, search)
-        agent.Interactive(level)
+
+        # Start the interactive session for the current level
+        level_action = agent.Interactive(level)
+
+        # Check if we need to change levels
+        if level_action == 'NEXT_LEVEL':
+            if level >= 10:
+                level = 10
+            else:
+                level += 1
+        elif level_action == 'PREV_LEVEL':
+            if level <= 1:
+                level = 1
+            else:
+                level -= 1
