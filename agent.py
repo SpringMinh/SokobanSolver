@@ -126,11 +126,12 @@ class Agent:
 
     def conf2str(self,node):
         """
-           Function to convert boxPos and workerPos to string 
-           This function is used for hashing of configuration
+        Convert configuration to a unique, consistent string representation.
+        Uses sorted tuple of box positions to ensure consistent ordering.
         """
-        srted = set(node.boxPos)
-        return "".join(str(r) + str(c) for r, c in srted) + str(node.workerPosX) + str(node.workerPosY)
+        # sorted_boxes = sorted(node.boxPos)
+
+        return "".join(str(r) + str(',') + str(c) + str(';') for r, c in node.boxPos) + str('|') + str(node.workerPosX) + str(',') + str(node.workerPosY)
 
     def printPath(self, node, filename):
         path = []  # List to store the path
@@ -355,9 +356,11 @@ class Agent:
         frontier.put((0, self.sokoban.root, 0, ""))  # Add the root node with priority 0
         counter = 0
 
+        explored[self.conf2str(self.sokoban.root)] = 0
+
         while not frontier.empty():
 
-            _, node, path_weight, directions = frontier.get()
+            path_cost, node, path_weight, directions = frontier.get()
 
             if counter % 10000 == 0:
                 print(counter)
@@ -368,12 +371,13 @@ class Agent:
             configurationStr = self.conf2str(node)
             
             # If this configuration has been explored with a lower cost, skip this path
-            if configurationStr in explored and explored[configurationStr] <= path_weight:
-                print("already a better path!")
+            # if configurationStr in explored and explored[configurationStr] <= path_weight:
+            if explored[configurationStr] < path_cost:
+                # print("already a better path!")
                 continue
 
             # Add current node's configuration to explored with the minimum cost
-            explored[configurationStr] = path_weight
+            # explored[configurationStr] = path_weight
 
             # Check if the current node is the goal node
             if self.isGoal(node):
@@ -390,16 +394,16 @@ class Agent:
                 child_configurationStr = self.conf2str(child)
                 
                 # Check for deadlock in the child's configuration
-                is_deadlock = False
-                for (boxR, boxC) in child.boxPos:
-                    if (boxR, boxC) not in goal:
-                        if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
-                            is_deadlock = True
-                            break
-                
-                # If a deadlock is detected, skip this child
-                if is_deadlock:
-                    continue
+                # flag = False
+                # for (boxR, boxC) in child.boxPos:
+                #     if (boxR, boxC) not in goal:
+                #         if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
+                #             flag = True
+                #             break
+                # # deadlock -> prune the branch
+                # if flag:
+                #     # del(child)
+                #     continue
 
                 # Determine the direction and cost for this child
                 direction = direction_map[move]
@@ -411,17 +415,18 @@ class Agent:
                     direction = direction.upper()
 
                 # Calculate total cost (path weight + step cost)
-                total_path_weight = path_weight + child_weight + 1  # Add step cost of 1 for each move
+                total_path_weight = path_weight + child_weight  # Add step cost of 1 for each move
 
                 # Only add child if it has not been explored with a lower cost
-                print("Direction: ", directions + direction, "Total: ", total_path_weight, " path: ", path_weight, " child: ", child_weight, "\n")
-                time.sleep(0.2)
+                # print("Direction: ", directions + direction, "Total: ", total_path_weight, " path: ", path_weight, " child: ", child_weight, "\n")
+                # time.sleep(0.01)
 
-                if child_configurationStr not in explored: #or explored[child_configurationStr] > total_path_weight:
-                    frontier.put((total_path_weight, child, total_path_weight, directions + direction))
+                if child_configurationStr not in explored or explored[child_configurationStr] > total_path_weight + child.level:
+                    frontier.put((total_path_weight + child.level, child, total_path_weight, directions + direction))
+                    explored[child_configurationStr] = total_path_weight + child.level
 
         
-            print("Frontier: ", frontier.queue, "\n")
+            # print("Frontier: ", frontier.queue, "\n")
 
         # If no solution is found, return the search metrics
         end_time = time.time()
@@ -430,8 +435,94 @@ class Agent:
         time_taken = end_time - start_time
 
         return None, counter, None, "", time_taken, peak_memory
-
     
+    # def UCS(self):
+
+    #     direction_map = {(-1, 0): 'u', (1, 0): 'd', (0, -1): 'l', (0, 1): 'r'}
+
+    #     tracemalloc.start()
+    #     start_time = time.time()
+
+    #     self.frontier = PriorityQueue()
+    #     self.explored = {}
+
+    #     frontier = self.frontier
+    #     explored = self.explored
+    #     goal = self.sokoban.goal
+    #     weights = self.sokoban.boxWeights
+
+    #     frontier.put((0, self.sokoban.root, 0, ""))
+    #     counter = 0
+
+    #     explored[self.conf2str(self.sokoban.root)] = 0
+
+    #     while not frontier.empty():
+
+    #         # Get the node with the lowest cost
+    #         path_cost, node, path_weight, directions = frontier.get()
+    #         # node.Print(self.sokoban)
+    #         if counter % 10000 == 0:
+    #             print(counter)
+                
+    #         counter += 1
+
+    #         # Add current node to explored
+    #         configurationStr = self.conf2str(node)
+            
+    #         if explored[configurationStr] < path_cost:
+    #             # print("already a better path!")
+    #             continue
+            
+    #         # Check if current node is goal node
+    #         if self.isGoal(node):
+    #             end_time = time.time()
+    #             _, peak_memory = tracemalloc.get_traced_memory()
+    #             tracemalloc.stop()
+    #             time_taken = end_time - start_time
+    #             return node, counter, path_weight, directions, time_taken, peak_memory
+            
+    #         # Find children of current node
+    #         children = self.sokoban.moves(node)
+
+    #         # Check for deadlock in all children's configuration which are not on goal pos
+    #         # Calculate heuristic value for all valid child
+
+    #         for child, boxIdx, move in children:
+    #             child_configurationStr = self.conf2str(child)
+    #             # flag-> false means current configuration has no deadlock and is default behaviour
+    #             # If any box which is not on goal position and is permanently blocked, there is a deadlock
+    #             flag = False
+    #             for (boxR, boxC) in child.boxPos:
+    #                 if (boxR, boxC) not in goal:
+    #                     if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
+    #                         flag = True
+    #                         break
+    #             # deadlock -> prune the branch
+    #             if flag:
+    #                 # del(child)
+    #                 continue
+    #             direction = direction_map[move]
+    #             if boxIdx == -1:
+    #                 child_weight = 0
+    #                 direction = direction.lower()
+    #             else:
+    #                 child_weight = weights[boxIdx]
+    #                 direction = direction.upper()
+    #             total_path_weight = path_weight + child_weight
+    #             # Calculate the cost of the child node
+    #             child_cost = 0 + total_path_weight + child.level
+
+    #             if child_configurationStr not in explored or explored[child_configurationStr] > child_cost:
+    #                 frontier.put((child_cost, child, total_path_weight, directions + direction))
+    #                 explored[child_configurationStr] = child_cost
+
+    #     end_time = time.time()
+    #     _, peak_memory = tracemalloc.get_traced_memory()
+    #     tracemalloc.stop()
+    #     time_taken = end_time - start_time
+
+    #     return None, counter, None, "", time_taken, peak_memory
+
     def Astar(self):
 
         direction_map = {(-1, 0): 'u', (1, 0): 'd', (0, -1): 'l', (0, 1): 'r'}
@@ -450,10 +541,12 @@ class Agent:
         frontier.put((0, self.sokoban.root, 0, ""))
         counter = 0
 
+        explored[self.conf2str(self.sokoban.root)] = 0
+
         while not frontier.empty():
 
             # Get the node with the lowest cost
-            _, node, path_weight, directions = frontier.get()
+            path_cost, node, path_weight, directions = frontier.get()
             # node.Print(self.sokoban)
             if counter % 10000 == 0:
                 print(counter)
@@ -461,7 +554,11 @@ class Agent:
             counter += 1
 
             # Add current node to explored
-            explored[self.conf2str(node)] = None
+            configurationStr = self.conf2str(node)
+            
+            if explored[configurationStr] < path_cost:
+                # print("already a better path!")
+                continue
             
             # Check if current node is goal node
             if self.isGoal(node):
@@ -478,41 +575,33 @@ class Agent:
             # Calculate heuristic value for all valid child
 
             for child, boxIdx, move in children:
-
-                # Convert the configuration to a string for hashing
-                configurationStr = self.conf2str(child)
-                if configurationStr not in explored:
-
-                    # flag-> false means current configuration has no deadlock and is default behaviour
-                    # If any box which is not on goal position and is permanently blocked, there is a deadlock
-                    flag = False
-                    for (boxR, boxC) in child.boxPos:
-                        if (boxR, boxC) not in goal:
-                            if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
-                                flag = True
-                                break
-                    # deadlock -> prune the branch
-                    if flag:
-                        del(child)
-                        continue
-                    direction = direction_map[move]
-                    if boxIdx == -1:
-                        child_weight = 0
-                        direction = direction.lower()
-                    else:
-                        child_weight = weights[boxIdx]
-                        direction = direction.upper()
-                    total_path_weight = path_weight + child_weight
-                    # print(total_path_weight, " ", path_weight, " ", child_weight, "\n")
-                    # print(child.boxPos)
-                    # Calculate the cost of the child node
-                    child_cost = self.heuristic(child, goal) + total_path_weight
-                    #print(child_cost, " ", self.heuristic(child, goal)," ", node.level, "A*\n")
-                    frontier.put((child_cost + node.level, child, total_path_weight, directions + direction))
-
-                # already visited (infinite loop)
+                child_configurationStr = self.conf2str(child)
+                # flag-> false means current configuration has no deadlock and is default behaviour
+                # If any box which is not on goal position and is permanently blocked, there is a deadlock
+                flag = False
+                for (boxR, boxC) in child.boxPos:
+                    if (boxR, boxC) not in goal:
+                        if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
+                            flag = True
+                            break
+                # deadlock -> prune the branch
+                if flag:
+                    # del(child)
+                    continue
+                direction = direction_map[move]
+                if boxIdx == -1:
+                    child_weight = 0
+                    direction = direction.lower()
                 else:
-                    del(child)
+                    child_weight = weights[boxIdx]
+                    direction = direction.upper()
+                total_path_weight = path_weight + child_weight
+                # Calculate the cost of the child node
+                child_cost = self.heuristic(child, goal) + total_path_weight + child.level
+
+                if child_configurationStr not in explored or explored[child_configurationStr] > child_cost:
+                    frontier.put((child_cost, child, total_path_weight, directions + direction))
+                    explored[child_configurationStr] = child_cost
 
         end_time = time.time()
         _, peak_memory = tracemalloc.get_traced_memory()
