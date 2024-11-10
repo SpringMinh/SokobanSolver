@@ -63,32 +63,6 @@ class Sokoban:
 
         return result
 
-# def is_valid_value(self,char):
-#         if (
-#             char == ' ' or # floor
-#             char == '#' or # wall
-#             char == '@' or # worker on floor
-#             char == '.' or # goal
-#             char == '*' or # box on goal
-#             char == '$' or # box
-#             char == '+' ): # worker on goal
-#             return True
-#         else:
-#             return False
-
-# Level 1
-                # # # # 
-                #     # # # 
-                #         # 
-                #   $     # 
-                # # #   # # #
-                #   $   $   #
-                # . . @ . . #
-                #     $     #
-                # # #     # #
-                    # # # # 
-
-
 class Node:
 
     def __init__(self,parent,boxPos,workerPosX,workerPosY):

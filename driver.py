@@ -1,125 +1,54 @@
 import os
 from agent import Agent
 from env import Sokoban
-import copy
+from algorithm import SearchAlgorithm
 
 def get_level(level):
-
-    filepath = "levels/"
-    if level < 10:
-        filename = "input-0" + str(level) + ".txt"
-    else:
-        filename = "input-" + str(level) + ".txt"
-    inputfile = filepath + filename
-    if not os.path.exists(inputfile):
-        print(f"File '{filename}' does not exist in '{filepath}'!")
+    filename = f"levels/input-{str(level).zfill(2)}.txt"
+    if not os.path.exists(filename):
+        print(f"File '{filename}' does not exist!")
         return None, None
-    with open(inputfile, "r") as file:
-        # Read the weights from the first line and store them as integers in a list
-        weights = list(map(int, file.readline().strip().split()))
-
-        # Read the rest of the file for the level layout
-        allLevels = file.readlines()
-
-    # Initialize variables to store the level layout
-    maxSize = 0
-    ll = [""] * len(allLevels)
-
-    # Build the level matrix from the lines
-    for i in range(len(allLevels)):
-        tmp = allLevels[i].rstrip()  # Remove trailing spaces and newline characters
-        ll[i] = tmp
-        if len(ll[i]) > maxSize:
-            maxSize = len(ll[i])
-
-    # Adjust each row in the level layout to match the max width
-    for i in range(len(ll)):
-        if len(ll[i]) < maxSize:
-            ll[i] += " " * (maxSize - len(ll[i]))
-
-    # Convert the level layout into a 2D list of characters
-    lll = []
-    for row in ll:
-        lll.append([char for char in row])
-
-    # Return both the level matrix and the weights list
-    return lll, weights
-
-
-if __name__=="__main__":
-    # board=[
-	# [' ',' ','#','#','#','#','#',' '],           
-    # ['#','#','#',' ',' ',' ','#',' '],  
-    # ['#','.','@','$',' ',' ','#',' '],    
-    # ['#','#','#',' ','$','.','#',' '],  
-    # ['#','.','#','#','$',' ','#',' '],  
-    # ['#',' ','#',' ','.',' ','#','#'],  
-    # ['#','$',' ','*','$','$','.','#'],
-    # ['#',' ',' ',' ','.',' ',' ','#'],  
-    # ['#','#','#','#','#','#','#','#']]
-
-    level = 3
-    board, boxWeights = get_level(level)
-
-    # print(board)
-
-    workerPosX=None
-    workerPosY=None
-    boxPos =[]
-    goalPos= []
-    if board:
-        for x in range(len(board)):
-            for y in range(len(board[x])):
-                if board[x][y] == '@':
-                    workerPosX=x
-                    workerPosY=y
-                    board[x][y]=' '
-                if board[x][y] == '$':
-                    boxPos.append((x,y))
-                    board[x][y]=' '
-                if board[x][y] =='.':
-                    goalPos.append((x,y))
-                    board[x][y]=' '
-                if board[x][y] == '+':
-                    workerPosX=x
-                    workerPosY=y
-                    goalPos.append((x,y))
-                    board[x][y]=' '
-                if board[x][y] == '*':
-                    boxPos.append((x,y))
-                    goalPos.append((x,y))
-                    board[x][y]=' '
-
-        print(boxPos)
-
-        workerPos=(workerPosX,workerPosY)
-
-        SBobj=Sokoban(board,boxPos,goalPos,workerPos,boxWeights)        
-
-        agnt=Agent(SBobj)
-
-        agnt.Interactive(level)
-
-        # result,counter,weight=agnt.DFS()
-        # result,counter,weight=agnt.BFS()
-        
-
-        # try:
-        #     os.remove("path.txt")
-        # except:
-        #     pass
-        # path=agnt.printPath(result,"path.txt")
-
-        # print("Nodes explored: ", counter)
-        # print("Steps taken: ", result.level)
-        # print("Total weights pushed: ", weight)
-        # print("List of weights: ", boxWeights)
-
-        # agnt.Interactive(path)
-
-
     
+    with open(filename, "r") as file:
+        weights = list(map(int, file.readline().strip().split()))
+        all_levels = [line.rstrip() for line in file]
+    
+    max_size = max(len(line) for line in all_levels)
+    ll = [line.ljust(max_size) for line in all_levels]
+    level_layout = [[char for char in row] for row in ll]
 
+    return level_layout, weights
 
+def parse_board(board):
+    worker_pos, box_pos, goal_pos = None, [], []
+    for x, row in enumerate(board):
+        for y, char in enumerate(row):
+            if char == '@':
+                worker_pos = (x, y)
+                board[x][y] = ' '
+            elif char == '$':
+                box_pos.append((x, y))
+                board[x][y] = ' '
+            elif char == '.':
+                goal_pos.append((x, y))
+                board[x][y] = ' '
+            elif char == '+':
+                worker_pos = (x, y)
+                goal_pos.append((x, y))
+                board[x][y] = ' '
+            elif char == '*':
+                box_pos.append((x, y))
+                goal_pos.append((x, y))
+                board[x][y] = ' '
+    return worker_pos, box_pos, goal_pos
 
-            
+if __name__ == "__main__":
+    level = 3
+    board, box_weights = get_level(level)
+
+    if board:
+        worker_pos, box_pos, goal_pos = parse_board(board)
+        sokoban_obj = Sokoban(board, box_pos, goal_pos, worker_pos, box_weights)
+        search = SearchAlgorithm(sokoban_obj)
+        agent = Agent(sokoban_obj, search)
+        agent.Interactive(level)
