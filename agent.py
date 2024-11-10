@@ -104,42 +104,34 @@ class Agent:
             return False
 
     def isGoal(self,node):
-        goal=self.sokoban.goal
-        boxPos=node.boxPos
+        return set(self.sokoban.goal) == set(node.boxPos)
 
-        if set(goal)==set(boxPos):
-            return True
-        else:
-            return False
+    def heuristic(self, node, goal):
+        boxPos = copy.deepcopy(node.boxPos)
+        weights = self.sokoban.boxWeights
+        workerR = node.workerPosX
+        workerC = node.workerPosY
 
-    def heuristic(self,node,goal):
-        boxPos=copy.deepcopy(node.boxPos)
-        boxPos.sort(key = lambda x: x[0] + x[1])
+        # Calculate the Manhattan distance between the worker and the closest box
+        #closest_box_distance = min(abs(workerR - boxR) + abs(workerC - boxC) for boxR, boxC in boxPos)
 
-        cost=0
-
-        for i in range(len(boxPos)):
-            cost+=abs(boxPos[i][0]-goal[i][0])+abs(boxPos[i][1]-goal[i][1])
+        # Calculate the weighted Manhattan distance from each box to its closest goal
+        cost = 0  # Start with the closest box distance for the worker
+        for i, (boxR, boxC) in enumerate(boxPos):
+            weight = weights[i] if i < len(weights) else 1  # Default weight of 1 if no specific weight provided
+            min_goal_distance = min(abs(boxR - goalR) + abs(boxC - goalC) for goalR, goalC in goal)
+            cost += weight * min_goal_distance
 
         return cost
 
-
     def conf2str(self,node):
         """
-           Function to convert boxPos and workerPos to string 
-           This function is used for hashing of configuration
+        Convert configuration to a unique, consistent string representation.
+        Uses sorted tuple of box positions to ensure consistent ordering.
         """
-        result=""
+        # sorted_boxes = sorted(node.boxPos)
 
-        srted=set(node.boxPos)
-
-        for r,c in srted:
-            result=result+str(r)+str(c)
-
-        result=result+str(node.workerPosX)+str(node.workerPosY)
-
-        return result
-
+        return "".join(str(r) + str(',') + str(c) + str(';') for r, c in node.boxPos) + str('|') + str(node.workerPosX) + str(',') + str(node.workerPosY)
 
     def printPath(self, node, filename):
         path = []  # List to store the path
@@ -162,28 +154,23 @@ class Agent:
     
     def printOutput(self, action, counter, steps, weight, directions, time_taken, peak_memory, level):
         filepath = "output/"
-        if level < 10:
-            filename = "output-0" + str(level) + ".txt"
-        else:
-            filename = "output-" + str(level) + ".txt"
+        filename = f"output-{level:02d}.txt"
         outputfile = filepath + filename
         time_ms = int(time_taken * 1000)  # Convert seconds to milliseconds
         memory_mb = peak_memory / (1024 * 1024)  # Convert bytes to MB
-        output = f"{action}\n" \
-                 f"Steps: {steps}, Weight: {weight}, Node: {counter}, " \
-                 f"Time (ms): {time_ms}, Memory (MB): {memory_mb:.2f}\n" \
-                 f"{directions}\n"
-        if os.path.exists(outputfile):
+
+        output = (
+            f"{action}\n"
+            f"Steps: {steps}, Weight: {weight}, Node: {counter}, "
+            f"Time (ms): {time_ms}, Memory (MB): {memory_mb:.2f}\n"
+            f"{directions}\n"
+        )
+
+        """if os.path.exists(outputfile):
             with open(outputfile, 'r') as file:
-                content = file.read()
-            # If the action already exists, skip appending
-            if action in content:
-                print(f"{action} already exists in {outputfile}, skipping append.")
-                return
-        else:
-            content = ""
-        
-        # Append the new output to the file
+                if action in file.read():
+                    print(f"{action} already exists in {outputfile}, skipping append.")
+                    return"""
         with open(outputfile, 'a') as file:
             file.write(output)
 
@@ -352,68 +339,276 @@ class Agent:
 
         return None, counter, None, "", time_taken, peak_memory
 
+    def UCS(self):
+        direction_map = {(-1, 0): 'u', (1, 0): 'd', (0, -1): 'l', (0, 1): 'r'}
 
-    # [OLD]
-    # def BFS(self):
+        tracemalloc.start()
+        start_time = time.time()
+
+        self.frontier = PriorityQueue()
+        self.explored = {}
+
+        frontier = self.frontier
+        explored = self.explored
+        goal = self.sokoban.goal
+        weights = self.sokoban.boxWeights
+
+        frontier.put((0, self.sokoban.root, 0, ""))  # Add the root node with priority 0
+        counter = 0
+
+        explored[self.conf2str(self.sokoban.root)] = 0
+
+        while not frontier.empty():
+
+            path_cost, node, path_weight, directions = frontier.get()
+
+            if counter % 10000 == 0:
+                print(counter)
+
+            counter += 1
+
+            # Calculate the unique configuration string for the current node
+            configurationStr = self.conf2str(node)
+            
+            # If this configuration has been explored with a lower cost, skip this path
+            # if configurationStr in explored and explored[configurationStr] <= path_weight:
+            if explored[configurationStr] < path_cost:
+                # print("already a better path!")
+                continue
+
+            # Add current node's configuration to explored with the minimum cost
+            # explored[configurationStr] = path_weight
+
+            # Check if the current node is the goal node
+            if self.isGoal(node):
+                end_time = time.time()
+                _, peak_memory = tracemalloc.get_traced_memory()
+                tracemalloc.stop()
+                time_taken = end_time - start_time
+                return node, counter, path_weight, directions, time_taken, peak_memory
+
+            # Find children of the current node
+            children = self.sokoban.moves(node)
+
+            for child, boxIdx, move in children:
+                child_configurationStr = self.conf2str(child)
+                
+                # Check for deadlock in the child's configuration
+                # flag = False
+                # for (boxR, boxC) in child.boxPos:
+                #     if (boxR, boxC) not in goal:
+                #         if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
+                #             flag = True
+                #             break
+                # # deadlock -> prune the branch
+                # if flag:
+                #     # del(child)
+                #     continue
+
+                # Determine the direction and cost for this child
+                direction = direction_map[move]
+                if boxIdx == -1:
+                    child_weight = 0
+                    direction = direction.lower()
+                else:
+                    child_weight = weights[boxIdx]
+                    direction = direction.upper()
+
+                # Calculate total cost (path weight + step cost)
+                total_path_weight = path_weight + child_weight  # Add step cost of 1 for each move
+
+                # Only add child if it has not been explored with a lower cost
+                # print("Direction: ", directions + direction, "Total: ", total_path_weight, " path: ", path_weight, " child: ", child_weight, "\n")
+                # time.sleep(0.01)
+
+                if child_configurationStr not in explored or explored[child_configurationStr] > total_path_weight + child.level:
+                    frontier.put((total_path_weight + child.level, child, total_path_weight, directions + direction))
+                    explored[child_configurationStr] = total_path_weight + child.level
+
+        
+            # print("Frontier: ", frontier.queue, "\n")
+
+        # If no solution is found, return the search metrics
+        end_time = time.time()
+        _, peak_memory = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        time_taken = end_time - start_time
+
+        return None, counter, None, "", time_taken, peak_memory
+    
+    # def UCS(self):
+
+    #     direction_map = {(-1, 0): 'u', (1, 0): 'd', (0, -1): 'l', (0, 1): 'r'}
+
+    #     tracemalloc.start()
+    #     start_time = time.time()
+
+    #     self.frontier = PriorityQueue()
+    #     self.explored = {}
+
     #     frontier = self.frontier
     #     explored = self.explored
-    #     goal=self.sokoban.goal
-    
-    #     frontier.put(self.sokoban.root)
-    #     counter=0
+    #     goal = self.sokoban.goal
+    #     weights = self.sokoban.boxWeights
+
+    #     frontier.put((0, self.sokoban.root, 0, ""))
+    #     counter = 0
+
+    #     explored[self.conf2str(self.sokoban.root)] = 0
 
     #     while not frontier.empty():
-            
-    #         node = frontier.get()
-    #         # node.Print(self.sokoban,"path.txt")
-    #         if counter%10000==0:
+
+    #         # Get the node with the lowest cost
+    #         path_cost, node, path_weight, directions = frontier.get()
+    #         # node.Print(self.sokoban)
+    #         if counter % 10000 == 0:
     #             print(counter)
                 
-    #         counter+=1            
-            
-    #         # Add current node to explored
-    #         explored[self.conf2str(node)]=None
+    #         counter += 1
 
+    #         # Add current node to explored
+    #         configurationStr = self.conf2str(node)
+            
+    #         if explored[configurationStr] < path_cost:
+    #             # print("already a better path!")
+    #             continue
+            
     #         # Check if current node is goal node
     #         if self.isGoal(node):
-    #             return node,counter
-
+    #             end_time = time.time()
+    #             _, peak_memory = tracemalloc.get_traced_memory()
+    #             tracemalloc.stop()
+    #             time_taken = end_time - start_time
+    #             return node, counter, path_weight, directions, time_taken, peak_memory
+            
     #         # Find children of current node
-    #         children=self.sokoban.moves(node)
+    #         children = self.sokoban.moves(node)
 
     #         # Check for deadlock in all children's configuration which are not on goal pos
     #         # Calculate heuristic value for all valid child
-    #         # Push them to frontier
-    #         for child in children:
 
-    #             configurationStr = self.conf2str(child)
-    #             if configurationStr not in explored:
-
-    #             # flag-> false means current configuration has no deadlock and is default behaviour    
-    #             # If any box which is not on goal position and is permanent blocked then there is a deadlock
-    #                 flag=False
-    #                 for boxR,boxC in child.boxPos:
-    #                     if (boxR,boxC) not in goal:
-    #                         if self.PBCheck(boxR,boxC,child.boxPos,(-1,-1),1):
-                                
-    #                             flag=True
-    #                             break
-                            
-    #                 if flag:
-    #                     del(child)
-    #                     continue
-                    
-    #                 # h(x) is included while computing cost -> A*
-    #                 child.cost=self.heuristic(child,goal)+child.level     # cost = h(x) + g(x)
-                    
-    #                 # only g(x) is considered -> breadth first search
-    #                 # child.cost=child.level
-    #                 frontier.put(child)
-
+    #         for child, boxIdx, move in children:
+    #             child_configurationStr = self.conf2str(child)
+    #             # flag-> false means current configuration has no deadlock and is default behaviour
+    #             # If any box which is not on goal position and is permanently blocked, there is a deadlock
+    #             flag = False
+    #             for (boxR, boxC) in child.boxPos:
+    #                 if (boxR, boxC) not in goal:
+    #                     if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
+    #                         flag = True
+    #                         break
+    #             # deadlock -> prune the branch
+    #             if flag:
+    #                 # del(child)
+    #                 continue
+    #             direction = direction_map[move]
+    #             if boxIdx == -1:
+    #                 child_weight = 0
+    #                 direction = direction.lower()
     #             else:
-    #                 del(child)
+    #                 child_weight = weights[boxIdx]
+    #                 direction = direction.upper()
+    #             total_path_weight = path_weight + child_weight
+    #             # Calculate the cost of the child node
+    #             child_cost = 0 + total_path_weight + child.level
+
+    #             if child_configurationStr not in explored or explored[child_configurationStr] > child_cost:
+    #                 frontier.put((child_cost, child, total_path_weight, directions + direction))
+    #                 explored[child_configurationStr] = child_cost
+
+    #     end_time = time.time()
+    #     _, peak_memory = tracemalloc.get_traced_memory()
+    #     tracemalloc.stop()
+    #     time_taken = end_time - start_time
+
+    #     return None, counter, None, "", time_taken, peak_memory
+
+    def Astar(self):
+
+        direction_map = {(-1, 0): 'u', (1, 0): 'd', (0, -1): 'l', (0, 1): 'r'}
+
+        tracemalloc.start()
+        start_time = time.time()
+
+        self.frontier = PriorityQueue()
+        self.explored = {}
+
+        frontier = self.frontier
+        explored = self.explored
+        goal = self.sokoban.goal
+        weights = self.sokoban.boxWeights
+
+        frontier.put((0, self.sokoban.root, 0, ""))
+        counter = 0
+
+        explored[self.conf2str(self.sokoban.root)] = 0
+
+        while not frontier.empty():
+
+            # Get the node with the lowest cost
+            path_cost, node, path_weight, directions = frontier.get()
+            # node.Print(self.sokoban)
+            if counter % 10000 == 0:
+                print(counter)
                 
-    #     return None
+            counter += 1
+
+            # Add current node to explored
+            configurationStr = self.conf2str(node)
+            
+            if explored[configurationStr] < path_cost:
+                # print("already a better path!")
+                continue
+            
+            # Check if current node is goal node
+            if self.isGoal(node):
+                end_time = time.time()
+                _, peak_memory = tracemalloc.get_traced_memory()
+                tracemalloc.stop()
+                time_taken = end_time - start_time
+                return node, counter, path_weight, directions, time_taken, peak_memory
+            
+            # Find children of current node
+            children = self.sokoban.moves(node)
+
+            # Check for deadlock in all children's configuration which are not on goal pos
+            # Calculate heuristic value for all valid child
+
+            for child, boxIdx, move in children:
+                child_configurationStr = self.conf2str(child)
+                # flag-> false means current configuration has no deadlock and is default behaviour
+                # If any box which is not on goal position and is permanently blocked, there is a deadlock
+                flag = False
+                for (boxR, boxC) in child.boxPos:
+                    if (boxR, boxC) not in goal:
+                        if self.PBCheck(boxR, boxC, child.boxPos, (-1, -1), 1):
+                            flag = True
+                            break
+                # deadlock -> prune the branch
+                if flag:
+                    # del(child)
+                    continue
+                direction = direction_map[move]
+                if boxIdx == -1:
+                    child_weight = 0
+                    direction = direction.lower()
+                else:
+                    child_weight = weights[boxIdx]
+                    direction = direction.upper()
+                total_path_weight = path_weight + child_weight
+                # Calculate the cost of the child node
+                child_cost = self.heuristic(child, goal) + total_path_weight + child.level
+
+                if child_configurationStr not in explored or explored[child_configurationStr] > child_cost:
+                    frontier.put((child_cost, child, total_path_weight, directions + direction))
+                    explored[child_configurationStr] = child_cost
+
+        end_time = time.time()
+        _, peak_memory = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        time_taken = end_time - start_time
+
+        return None, counter, None, "", time_taken, peak_memory
 
     def is_valid_value(self,char):
         if ( char == ' ' or #floor
@@ -456,21 +651,12 @@ class Agent:
                         self.matrix.append(row)
                     else:
                         break
-
-    # def run_algorithm(self, algorithm):
-    #     if algorithm == "DFS":
-    #         result, _, _ = self.DFS()
-    #     elif algorithm == "BFS":
-    #         result, _, _ = self.BFS()
-    #     else:
-    #         return []
-    #     return self.printPath(result, "path.txt")  # Generate the path for visualization
-
-    # def reset_state(self):
-    #     # Reset the Sokoban board and other relevant states to their initial configuration.
-    #     self.sokoban.reset()  # Assuming Sokoban has a reset method
-    #     print("[+] Game state reset to initial configuration.")
-
+            if not level_found:
+                print ("ERROR: Level "+str(level)+" not found")
+                sys.exit(1)
+            file.close()
+            return self.matrix
+        
     def Interactive(self,level):
         board=self.sokoban.board
 
@@ -488,16 +674,16 @@ class Agent:
         SCREEN.fill(BLACK)
 
         margin = (max(WINDOW_WIDTH, 52) - (36 * 4)) / 5
-        buttons = [
-            button('black', margin, WINDOW_HEIGHT + 4, 36, 36, 'Prev', id='navLeft'),
-            button('black', 2 * margin + 36, WINDOW_HEIGHT + 4, 36, 36, 'Next', id='navRight'),
-            button('black', 3 * margin + 2 * 36, WINDOW_HEIGHT + 4, 36, 36, 'Auto', id='navAuto'),
-            button('red', 4 * margin + 3 * 36, WINDOW_HEIGHT + 4, 36, 36, 'Reset', id='navReset'),
+        Buttons = [
+            Button('black', margin, WINDOW_HEIGHT + 4, 36, 36, 'Prev', id='navLeft'),
+            Button('black', 2 * margin + 36, WINDOW_HEIGHT + 4, 36, 36, 'Next', id='navRight'),
+            Button('black', 3 * margin + 2 * 36, WINDOW_HEIGHT + 4, 36, 36, 'Auto', id='navAuto'),
+            Button('red', 4 * margin + 3 * 36, WINDOW_HEIGHT + 4, 36, 36, 'Reset', id='navReset'),
 
-            button('black', margin, WINDOW_HEIGHT + 50, 36, 36, 'DFS', id='navDFS'),
-            button('black', 2 * margin + 36, WINDOW_HEIGHT + 50, 36, 36, 'BFS', id='navBFS'),
-            button('black', 3 * margin + 2 * 36, WINDOW_HEIGHT + 50, 36, 36, 'UCS', id='navUCS'),
-            button('black', 4 * margin + 3 * 36, WINDOW_HEIGHT + 50, 36, 36, 'A*', id='navAstar')
+            Button('black', margin, WINDOW_HEIGHT + 50, 36, 36, 'DFS', id='navDFS'),
+            Button('black', 2 * margin + 36, WINDOW_HEIGHT + 50, 36, 36, 'BFS', id='navBFS'),
+            Button('black', 3 * margin + 2 * 36, WINDOW_HEIGHT + 50, 36, 36, 'UCS', id='navUCS'),
+            Button('black', 4 * margin + 3 * 36, WINDOW_HEIGHT + 50, 36, 36, 'A*', id='navAstar')
         ]
 
         current_node = self.sokoban.root
@@ -513,21 +699,21 @@ class Agent:
         running = True
         while running:
             current_time = pygame.time.get_ticks()
-            # Draw the current state and check for button actions
+            # Draw the current state and check for Button actions
             if path:
                 current_node = path[current_index]
             else:
                 current_node = self.sokoban.root
-            self.drawGrid(current_node, buttons)
+            self.drawGrid(current_node, Buttons)
 
             if autoplay:
                 if path:
-                    action = self.handleButtons(choice = 0, buttons = buttons)
+                    action = self.handleButtons(choice = 0, Buttons = Buttons)
             else:
-                action = self.handleButtons(choice = 1, buttons = buttons)
-            # Handle actions based on button presses from drawGrid
+                action = self.handleButtons(choice = 1, Buttons = Buttons)
+            # Handle actions based on Button presses from drawGrid
             if action != 'NOTCLICKEDWHILEAUTO':  # Only process if valid action is returned
-                path, current_index, autoplay = self.process_action(action, path, current_index, buttons, autoplay, level)
+                path, current_index, autoplay = self.process_action(action, path, current_index, Buttons, autoplay, level)
             
             if autoplay and path and (current_time - last_auto_update > autodelay):
                 if current_index < len(path) - 1:
@@ -543,7 +729,7 @@ class Agent:
                     sys.exit()
 
     # Helper function to handle actions
-    def process_action(self, action, path, current_index, buttons, autoplay, level):
+    def process_action(self, action, path, current_index, Buttons, autoplay, level):
         if action == 'DFS':
             print("DFS selected")
             result, counter, weight, directions, time_taken, peak_memory = self.DFS()
@@ -563,20 +749,20 @@ class Agent:
         elif action == 'RESET':
             print("Resetting to initial state")
             path = []
-            self.drawGrid(self.sokoban.root, buttons)
+            self.drawGrid(self.sokoban.root, Buttons)
             return [], 0, False
 
         elif action == -1:
             if path and current_index > 0:
                 current_index -= 1
                 autoplay = False
-                # self.drawGrid(path[current_index], buttons)
+                # self.drawGrid(path[current_index], Buttons)
 
         elif action == 1:
             if path and current_index < len(path) - 1:
                 current_index += 1
                 autoplay = False
-                # self.drawGrid(path[current_index], buttons)
+                # self.drawGrid(path[current_index], Buttons)
 
         elif action == 0:
             autoplay = not autoplay
@@ -585,18 +771,12 @@ class Agent:
             path = self.printPath(result, "path.txt")
             self.printOutput(action, counter, result.level, weight, directions, time_taken, peak_memory, level)
             print(f"{action}: Nodes explored: {counter}, Steps taken: {result.level}, Total weights pushed: {weight}, Time taken (s): {time_taken}, Memory usage (B): {peak_memory}")
-            # self.draw_solution_path(path, buttons, autoplay = False)
+            # self.draw_solution_path(path, Buttons, autoplay = False)
             return path, 0, False  # Reset index after a new path is generated
-        # if autoplay and path:
-        #     pygame.time.delay(100)
-        #     if current_index < len(path) - 1:
-        #         current_index += 1
-        #     else:
-        #         autoplay = False  # Stop auto-play at the last state
 
         return path, current_index, autoplay  # Return updated path and index
 
-    def drawGrid(self,node,buttons):
+    def drawGrid(self,node,Buttons):
         if not hasattr(self, 'lastnode') or self.lastnode != node:
             self.lastnode = node
             board=self.sokoban.board
@@ -655,22 +835,22 @@ class Agent:
                         if (x//blockSize,y//blockSize) in self.sokoban.goal:
                             display_surface.blit(player_on_target, (y, x))
 
-            for button in buttons:
-                button.draw(display_surface, outline='white')
+            for Button in Buttons:
+                Button.draw(display_surface, outline='white')
 
             pygame.display.update()
     
-    def handleButtons(self, choice, buttons):
+    def handleButtons(self, choice, Buttons):
         # print("choice ", choice)
         if choice != 0:
-            # Wait for a button press if not in auto-play mode
+            # Wait for a Button press if not in auto-play mode
             while True:
                 for event in pygame.event.get():
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         pos = pygame.mouse.get_pos()
-                        for btn in buttons:
+                        for btn in Buttons:
                             if btn.isOver(pos):
-                                # Return appropriate action based on button pressed
+                                # Return appropriate action based on Button pressed
                                 if btn.id == 'navLeft':
                                     return -1
                                 elif btn.id == 'navRight':
@@ -678,7 +858,7 @@ class Agent:
                                 elif btn.id == 'navAuto':
                                     return 0  # Toggle auto-play mode
                                 elif btn.id == 'navReset':
-                                    print("Reset button clicked")
+                                    print("Reset Button clicked")
                                     return 'RESET'
                                 elif btn.id == 'navDFS':
                                     print("DFS algorithm chosen")
@@ -702,9 +882,9 @@ class Agent:
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     pos = pygame.mouse.get_pos()
-                    for btn in buttons:
+                    for btn in Buttons:
                         if btn.isOver(pos):
-                            # Return appropriate action for button clicks in auto mode
+                            # Return appropriate action for Button clicks in auto mode
                             if btn.id == 'navLeft':
                                 return -1
                             elif btn.id == 'navRight':
@@ -712,50 +892,16 @@ class Agent:
                             elif btn.id == 'navAuto':
                                 return 0  # Toggle auto-play
                             elif btn.id == 'navReset':
-                                print("Reset button clicked")
+                                print("Reset Button clicked")
                                 return 'RESET'
 
                 if event.type == pygame.QUIT:
                     print("[+] Quitting...")
                     pygame.quit()
                     sys.exit()
-            # In auto-play, return 0 to keep progressing unless a button event occurs
+            # In auto-play, return 0 to keep progressing unless a Button event occurs
             return 'NOTCLICKEDWHILEAUTO'
-            # [OLD!]
-            # # Auto-play timing mechanism to allow the game to progress smoothly
-            # start_time = time.time()
-            # while True:
-            #     current_time = time.time()
-            #     elapsed_time = current_time - start_time
-
-            #     if elapsed_time > 0.05:
-            #         return 0  # Progress in auto-play mode after delay
-
-            #     # Check for quit events and limited button actions
-            #     for event in pygame.event.get():
-            #         if event.type == pygame.MOUSEBUTTONDOWN:
-            #             pos = pygame.mouse.get_pos()
-            #             for btn in buttons:
-            #                 if btn.isOver(pos):
-            #                     # Return appropriate action for button clicks in auto mode
-            #                     if btn.id == 'navLeft':
-            #                         return -1
-            #                     elif btn.id == 'navRight':
-            #                         return 1
-            #                     elif btn.id == 'navAuto':
-            #                         return 0  # Toggle auto-play
-            #                     elif btn.id == 'navReset':
-            #                         print("Reset button clicked")
-            #                         return 'RESET'
-
-            #         if event.type == pygame.QUIT:
-            #             print("[+] Quitting...")
-            #             pygame.quit()
-            #             sys.exit()
-        
-
-
-class button:
+class Button:
     def __init__(self, color, x,y,width,height, text='',id=None):
         self.color = color
         self.x = x
@@ -764,24 +910,22 @@ class button:
         self.height = height
         self.text = text
         self.id = id
+        self.font = pygame.font.SysFont('comicsans', 12)
 
     def draw(self,win,outline=None):
-        #Call this method to draw the button on the screen
+        #Call this method to draw the Button on the screen
         if outline:
 
             pygame.draw.rect(win, outline, (self.x-2,self.y-2,self.width+4,self.height+4),0)
             
         pygame.draw.rect(win, self.color, (self.x,self.y,self.width,self.height),0)
         
-        if self.text != '':
-            font = pygame.font.SysFont('comicsans', 15)
-            text = font.render(self.text, 1, (255,255,255))
-            win.blit(text, (self.x + (self.width/2 - text.get_width()/2), self.y + (self.height/2 - text.get_height()/2)))
+        if self.text:
+            text_surface = self.font.render(self.text, True, (255, 255, 255))
+            text_x = self.x + (self.width - text_surface.get_width()) // 2
+            text_y = self.y + (self.height - text_surface.get_height()) // 2
+            win.blit(text_surface, (text_x, text_y))
 
     def isOver(self, pos):
         #Pos is the mouse position or a tuple of (x,y) coordinates
-        if pos[0] > self.x and pos[0] < self.x + self.width:
-            if pos[1] > self.y and pos[1] < self.y + self.height:
-                return True
-            
-        return False
+        return self.x < pos[0] < self.x + self.width and self.y < pos[1] < self.y + self.height
